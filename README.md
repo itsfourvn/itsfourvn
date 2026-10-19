@@ -9,7 +9,6 @@
 <br>
 <div align="center">
 <img src="./generated/overview.svg"><img src="./generated/languages.svg">
-  
 
 ## 🕘 Recent activity:
 <!--START_SECTION:activity-->
