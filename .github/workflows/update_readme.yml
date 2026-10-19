@@ -34,6 +34,7 @@ jobs:
         run: |
           python github_stats.py
           python generate_images.py
+          python update_activity.py
 
       - name: Commit and push changes if any
         run: |
