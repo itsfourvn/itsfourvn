@@ -1,19 +1,19 @@
 name: Update README Profile Stats
 
 on:
-  scheduled:
+  schedule:
     - cron: "0 0 * * *" # Chạy tự động mỗi ngày vào lúc 00:00 UTC
-  workflow_dispatch:      # Cho phép chạy thủ công từ tab Actions trên GitHub
+  workflow_dispatch: # Cho phép chạy thủ công từ tab Actions trên GitHub
   push:
     branches:
-      - main              # Chạy khi có push lên nhánh chính
+      - main # Chạy khi có push lên nhánh chính
 
 jobs:
   update-readme:
     runs-on: ubuntu-latest
     permissions:
-      contents: write     # Cho phép workflow commit thay đổi ngược lại vào repo
-
+      contents: write # Cho phép workflow commit thay đổi ngược lại vào repo
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -36,5 +36,6 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global --add safe.directory /__w/itsfourvn/itsfourvn
           git add -A
           git diff --quiet && git diff --cached --quiet || (git commit -m "chore: auto-update README and stats" && git push)
