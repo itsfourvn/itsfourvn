@@ -9,8 +9,7 @@
 <br>
 <div align="center">
 <img src="./generated/overview.svg"><img src="./generated/languages.svg">
-  [![Top Langs](https://github-readme-stats.vercel.app/api/top-langs/?username=itsfourvn&layout=compact&theme=tokyonight)](https://github.com/itsfourvn/itsfourvn)
-</div>
+  
 
 ## 🕘 Recent activity:
 <!--START_SECTION:activity-->
