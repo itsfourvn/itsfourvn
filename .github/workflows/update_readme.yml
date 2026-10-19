@@ -2,7 +2,7 @@ name: Update README
 
 on:
   schedule:
-    - cron: "0 */6 * * *" # Tự động chạy mỗi 6 tiếng
+    - cron: "0 * * * *" # Tự động chạy mỗi 1 tiếng
   workflow_dispatch:      # Cho phép bấm chạy thủ công ở tab Actions
 
 jobs:
