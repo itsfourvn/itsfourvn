@@ -37,5 +37,4 @@ jobs:
         with:
           commit_message: "🚀 Update README stats and recent activity automatically"
           file_pattern: README.md generated/*
-          # Thêm dòng này để tự động rebase/pull code mới nhất trước khi push tránh bị từ chối
-          skip_fetch: false
+          push_options: '--force'
