@@ -1,0 +1,40 @@
+name: Update README Profile Stats
+
+on:
+  scheduled:
+    - cron: "0 0 * * *" # Chạy tự động mỗi ngày vào lúc 00:00 UTC
+  workflow_dispatch:      # Cho phép chạy thủ công từ tab Actions trên GitHub
+  push:
+    branches:
+      - main              # Chạy khi có push lên nhánh chính
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write     # Cho phép workflow commit thay đổi ngược lại vào repo
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run generation scripts
+        run: |
+          python github_stats.py
+          python generate_images.py
+
+      - name: Commit and push changes if any
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --quiet && git diff --cached --quiet || (git commit -m "chore: auto-update README and stats" && git push)
