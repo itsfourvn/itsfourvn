@@ -18,13 +18,14 @@ def get_recent_events():
     count = 0
     
     for event in events:
-        if count >= 25:  # Lấy tối đa 25 hoạt động
+        if count >= 10:  # Lấy 10 hoạt động gần nhất
             break
             
         event_type = event.get("type")
         repo_name = event.get("repo", {}).get("name")
         repo_url = f"https://github.com/{repo_name}"
         
+        # Xử lý sự kiện Push commit code
         if event_type == "PushEvent":
             payload = event.get("payload", {})
             commits = payload.get("commits", [])
@@ -32,22 +33,42 @@ def get_recent_events():
             branch = ref.split("/")[-1]
             
             for commit in commits:
-                if count >= 25:
+                if count >= 10:
                     break
                 commit_sha = commit.get("sha")[:7]
                 commit_url = f"{repo_url}/commit/{commit.get('sha')}"
+                commit_msg = commit.get("message", "").split("\n")[0]
                 
-                line = f"{count + 1}. 📦 Pushed [`{commit_sha}`]({commit_url}) to [`{branch}`]({repo_url}/tree/{branch}) in [`{repo_name}`]({repo_url})"
+                line = f"{count + 1}. 📦 Pushed [`{commit_sha}`]({commit_url}) to [`{branch}`]({repo_url}/tree/{branch}) in [{repo_name}]({repo_url}) - {commit_msg}"
                 activity_lines.append(line)
                 count += 1
                 
+        # Xử lý sự kiện tạo repository mới
         elif event_type == "CreateEvent":
             payload = event.get("payload", {})
             ref_type = payload.get("ref_type")
             ref = payload.get("ref", "")
             
-            if ref_type == "branch":
-                line = f"{count + 1}. 🆕 Created branch {ref} in [`{repo_name}`]({repo_url})"
+            if ref_type == "repository":
+                line = f"{count + 1}. ✨ Created repository [{repo_name}]({repo_url})"
+                activity_lines.append(line)
+                count += 1
+            elif ref_type == "branch":
+                line = f"{count + 1}. 🌿 Created branch `{ref}` in [{repo_name}]({repo_url})"
+                activity_lines.append(line)
+                count += 1
+                
+        # Xử lý sự kiện mở Pull Request
+        elif event_type == "PullRequestEvent":
+            payload = event.get("payload", {})
+            action = payload.get("action")
+            pr = payload.get("pull_request", {})
+            pr_title = pr.get("title")
+            pr_url = pr.get("html_url")
+            pr_num = pr.get("number")
+            
+            if action == "opened":
+                line = f"{count + 1}. 🔀 Opened PR [#{pr_num} {pr_title}]({pr_url}) in [{repo_name}]({repo_url})"
                 activity_lines.append(line)
                 count += 1
 
