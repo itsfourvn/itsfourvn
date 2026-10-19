@@ -18,7 +18,7 @@ def get_recent_events():
     count = 0
     
     for event in events:
-        if count >= 10:  # Lấy 10 hoạt động gần nhất cho gọn gàng
+        if count >= 10:  # Lấy 10 hoạt động gần nhất
             break
             
         event_type = event.get("type")
@@ -37,7 +37,7 @@ def get_recent_events():
                     break
                 commit_sha = commit.get("sha")[:7]
                 commit_url = f"{repo_url}/commit/{commit.get('sha')}"
-                commit_msg = commit.get("message", "").split("\n")[0] # Lấy dòng đầu tiên của message
+                commit_msg = commit.get("message", "").split("\n")[0]
                 
                 line = f"{count + 1}. 📦 Pushed [`{commit_sha}`]({commit_url}) to [`{branch}`]({repo_url}/tree/{branch}) in [{repo_name}]({repo_url}) - {commit_msg}"
                 activity_lines.append(line)
