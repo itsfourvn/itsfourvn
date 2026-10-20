@@ -14,5 +14,4 @@
 ### 🕘 Recent activity:
 <!--START_SECTION:activity-->
 1. 🌿 Created branch `main` in [itsfourvn/Chill-House-Discord-Bot](https://github.com/itsfourvn/Chill-House-Discord-Bot)
-2. 🌿 Created branch `main` in [itsfourvn/itsfourvn.github.io](https://github.com/itsfourvn/itsfourvn.github.io)
 <!--END_SECTION:activity-->
