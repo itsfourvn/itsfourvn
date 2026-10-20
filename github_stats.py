@@ -67,7 +67,7 @@ class Queries(object):
         :return: deserialized REST JSON output
         """
 
-        for attempt in range(3):
+        for attempt in range(5):
             headers = {
                 "Authorization": f"token {self.access_token}",
             }
@@ -83,14 +83,22 @@ class Queries(object):
                         params=tuple(params.items()),
                     ) as response:
                         result = await response.json(content_type=None)
+                
                 if response.status == 200:
                     return result
+                elif response.status == 202:
+                    # GitHub đang xử lý tính toán thống kê, chờ 5 giây rồi retry
+                    print(f"GitHub is computing stats (HTTP 202) for {path}, retrying in 5s (attempt {attempt + 1}/5)...")
+                    await asyncio.sleep(5)
+                    continue
+
                 print(f"REST request failed for {path} (HTTP {response.status})")
             except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as error:
                 print(f"REST request attempt {attempt + 1} failed for {path}: {error}")
-            if attempt < 2:
+            
+            if attempt < 4:
                 await asyncio.sleep(2 ** attempt)
-        raise RuntimeError(f"GitHub REST API request failed for {path} after 3 attempts.")
+        raise RuntimeError(f"GitHub REST API request failed for {path} after multiple attempts.")
 
     @staticmethod
     def repos_overview(
