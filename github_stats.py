@@ -467,7 +467,15 @@ Languages:
         additions = 0
         deletions = 0
         for repo in await self.repos:
-            r = await self.queries.query_rest(f"/repos/{repo}/stats/contributors")
+            try:
+                r = await self.queries.query_rest(f"/repos/{repo}/stats/contributors")
+            except RuntimeError as error:
+                print(f"Warning: Skipping line stats for {repo} due to persistent GitHub API delay (HTTP 202): {error}")
+                continue
+
+            if not isinstance(r, list):
+                continue
+
             for author_obj in r:
                 if not isinstance(author_obj, dict) or not isinstance(
                     author_obj.get("author", {}), dict
