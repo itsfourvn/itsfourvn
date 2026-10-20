@@ -5,7 +5,6 @@ import os
 from typing import Dict, List, Optional, Set, Tuple, Any, cast
 
 import aiohttp
-import requests
 
 class Queries(object):
     """
@@ -35,30 +34,25 @@ class Queries(object):
         headers = {
             "Authorization": f"Bearer {self.access_token}",
         }
-        try:
-            async with self.semaphore:
-                r_async = await self.session.post(
-                    "https://api.github.com/graphql",
-                    headers=headers,
-                    json={"query": generated_query},
-                )
-            result = await r_async.json()
-            if result is not None:
-                return result
-        except:
-            print("aiohttp failed for GraphQL query")
-            async with self.semaphore:
-                r_requests = requests.post(
-                    "https://api.github.com/graphql",
-                    headers=headers,
-                    json={"query": generated_query},
-                )
-                result = r_requests.json()
-                if result is not None:
+        for attempt in range(3):
+            try:
+                async with self.semaphore:
+                    async with self.session.post(
+                        "https://api.github.com/graphql",
+                        headers=headers,
+                        json={"query": generated_query},
+                    ) as response:
+                        result = await response.json(content_type=None)
+                if response.status == 200 and isinstance(result, dict) and not result.get("errors"):
                     return result
+                print(f"GraphQL request failed (HTTP {response.status})")
+            except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as error:
+                print(f"GraphQL request attempt {attempt + 1} failed: {error}")
+            if attempt < 2:
+                await asyncio.sleep(2 ** attempt)
         return dict()
 
-    async def query_rest(self, path: str, params: Optional[Dict] = None) -> Dict:
+    async def query_rest(self, path: str, params: Optional[Dict] = None) -> Any:
         """
         Make a request to the REST API
         :param path: API path to query
@@ -66,7 +60,7 @@ class Queries(object):
         :return: deserialized REST JSON output
         """
 
-        for _ in range(60):
+        for attempt in range(3):
             headers = {
                 "Authorization": f"token {self.access_token}",
             }
@@ -76,34 +70,20 @@ class Queries(object):
                 path = path[1:]
             try:
                 async with self.semaphore:
-                    r_async = await self.session.get(
+                    async with self.session.get(
                         f"https://api.github.com/{path}",
                         headers=headers,
                         params=tuple(params.items()),
-                    )
-                if r_async.status == 202:
-                    print(f"A path returned 202. Retrying...")
-                    await asyncio.sleep(2)
-                    continue
-
-                result = await r_async.json()
-                if result is not None:
+                    ) as response:
+                        result = await response.json(content_type=None)
+                if response.status == 200:
                     return result
-            except:
-                print("aiohttp failed for rest query")
-                async with self.semaphore:
-                    r_requests = requests.get(
-                        f"https://api.github.com/{path}",
-                        headers=headers,
-                        params=tuple(params.items()),
-                    )
-                    if r_requests.status_code == 202:
-                        print(f"A path returned 202. Retrying...")
-                        await asyncio.sleep(2)
-                        continue
-                    elif r_requests.status_code == 200:
-                        return r_requests.json()
-        print("There were too many 202s. Data for this repository will be incomplete.")
+                print(f"REST request failed for {path} (HTTP {response.status})")
+            except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as error:
+                print(f"REST request attempt {attempt + 1} failed for {path}: {error}")
+            if attempt < 2:
+                await asyncio.sleep(2 ** attempt)
+        print(f"Could not fetch {path}; returning empty data.")
         return dict()
 
     @staticmethod
@@ -296,9 +276,11 @@ Languages:
 
         exclude_langs_lower = {x.lower() for x in self._exclude_langs}
 
-        next_owned = None
-        next_contrib = None
-        while True:
+        next_owned: Optional[str] = None
+        next_contrib: Optional[str] = None
+        owned_done = False
+        contrib_done = False
+        while not (owned_done and contrib_done):
             raw_results = await self.queries.query(
                 Queries.repos_overview(
                     owned_cursor=next_owned, contrib_cursor=next_contrib
@@ -323,8 +305,8 @@ Languages:
                 raw_results.get("data", {}).get("viewer", {}).get("repositories", {})
             )
 
-            repos = owned_repos.get("nodes", [])
-            if not self._ignore_forked_repos:
+            repos = [] if owned_done else owned_repos.get("nodes", [])
+            if not self._ignore_forked_repos and not contrib_done:
                 repos += contrib_repos.get("nodes", [])
 
             for repo in repos:
@@ -352,21 +334,20 @@ Languages:
                             "color": lang.get("node", {}).get("color"),
                         }
 
-            if owned_repos.get("pageInfo", {}).get(
-                "hasNextPage", False
-            ) or contrib_repos.get("pageInfo", {}).get("hasNextPage", False):
-                next_owned = owned_repos.get("pageInfo", {}).get(
-                    "endCursor", next_owned
-                )
-                next_contrib = contrib_repos.get("pageInfo", {}).get(
-                    "endCursor", next_contrib
-                )
-            else:
-                break
+            owned_page = owned_repos.get("pageInfo", {})
+            contrib_page = contrib_repos.get("pageInfo", {})
+            owned_done = owned_done or not owned_page.get("hasNextPage", False)
+            contrib_done = (
+                contrib_done
+                or self._ignore_forked_repos
+                or not contrib_page.get("hasNextPage", False)
+            )
+            next_owned = owned_page.get("endCursor", next_owned) if not owned_done else None
+            next_contrib = contrib_page.get("endCursor", next_contrib) if not contrib_done else None
 
         langs_total = sum([v.get("size", 0) for v in self._languages.values()])
         for k, v in self._languages.items():
-            v["prop"] = 100 * (v.get("size", 0) / langs_total)
+            v["prop"] = 100 * v.get("size", 0) / langs_total if langs_total else 0
 
     @property
     async def name(self) -> str:
@@ -512,7 +493,7 @@ async def main() -> None:
     Used mostly for testing; this module is not usually run standalone
     """
     access_token = os.getenv("ACCESS_TOKEN")
-    user = os.getenv("GITHUB_ACTOR")
+    user = os.getenv("GITHUB_USERNAME", "itsfourvn").strip()
     if access_token is None or user is None:
         raise RuntimeError(
             "ACCESS_TOKEN and GITHUB_ACTOR environment variables cannot be None!"
