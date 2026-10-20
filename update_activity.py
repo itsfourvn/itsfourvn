@@ -18,7 +18,7 @@ END_MARKER = "<!--END_SECTION:activity-->"
 
 
 def get_recent_events(limit: int = 25) -> list[str]:
-    """Return recent commits across all public repositories of the user."""
+    """Return recent public GitHub events for the user."""
     if not GITHUB_USERNAME:
         raise RuntimeError("GITHUB_USERNAME must not be empty.")
 
@@ -26,55 +26,88 @@ def get_recent_events(limit: int = 25) -> list[str]:
     if ACCESS_TOKEN:
         headers["Authorization"] = f"Bearer {ACCESS_TOKEN}"
     response = requests.get(
-        f"https://api.github.com/users/{GITHUB_USERNAME}/repos",
+        f"https://api.github.com/users/{GITHUB_USERNAME}/events",
         headers=headers,
-        params={"per_page": 100, "sort": "updated", "direction": "desc"},
+        params={"per_page": 100},
         timeout=30,
     )
     response.raise_for_status()
 
-    commits: list[dict[str, Any]] = []
-    for repo in response.json():
-        repo_name = repo.get("full_name")
+    activity_lines: list[str] = []
+    for event in response.json():
+        if len(activity_lines) >= limit:
+            break
+        repo_name = str((event.get("repo") or {}).get("name") or "")
         if not repo_name:
             continue
-        commits_response = requests.get(
-            f"https://api.github.com/repos/{repo_name}/commits",
-            headers=headers,
-            params={"author": GITHUB_USERNAME, "per_page": 10},
-            timeout=30,
-        )
-        if commits_response.status_code == 409:
+        event_type = str(event.get("type") or "")
+        payload = event.get("payload") or {}
+        repo_url = f"https://github.com/{repo_name}"
+        icon, description, target_url = _describe_event(event_type, payload, repo_url)
+        if not description:
             continue
-        commits_response.raise_for_status()
-        for commit in commits_response.json():
-            commit_data = commit.get("commit") or {}
-            author_date = (commit_data.get("author") or {}).get("date") or ""
-            commits.append(
-                {
-                    "repo_name": repo_name,
-                    "repo_url": f"https://github.com/{repo_name}",
-                    "branch": repo.get("default_branch") or "main",
-                    "sha": commit.get("sha", ""),
-                    "url": commit.get("html_url", ""),
-                    "message": str(commit_data.get("message", "")).splitlines()[0][:120],
-                    "date": author_date,
-                }
-            )
-
-    commits.sort(key=lambda commit: commit["date"], reverse=True)
-    activity_lines: list[str] = []
-    for commit in commits[:limit]:
-        repo_name_html = html.escape(commit["repo_name"])
-        branch_html = html.escape(commit["branch"])
-        sha = html.escape(commit["sha"][:7])
-        message = html.escape(commit["message"])
-        activity_lines.append(
-            f"{len(activity_lines) + 1}. 📦 Pushed [`{sha}`]({commit['url']}) "
-            f"to [`{branch_html}`]({commit['repo_url']}/tree/{commit['branch']}) "
-            f"in [{repo_name_html}]({commit['repo_url']}) - {message}"
-        )
+        line = f"{len(activity_lines) + 1}. {icon} {description} in [{html.escape(repo_name)}]({repo_url})"
+        if target_url:
+            line += f" ([view]({html.escape(target_url)}))"
+        activity_lines.append(line)
     return activity_lines
+
+
+def _describe_event(
+    event_type: str, payload: dict[str, Any], repo_url: str
+) -> tuple[str, str, str]:
+    """Convert one GitHub event into an icon, description, and optional link."""
+    if event_type == "PushEvent":
+        ref = str(payload.get("ref") or "").removeprefix("refs/heads/")
+        head = str(payload.get("head") or "")
+        commits = payload.get("commits") or []
+        message = ""
+        if commits and isinstance(commits[0], dict):
+            message = str(commits[0].get("message") or "").splitlines()[0][:100]
+        description = f"Pushed [`{html.escape(head[:7])}`]({repo_url}/commit/{head}) to [`{html.escape(ref or 'main')}`]"
+        if message:
+            description += f" - {html.escape(message)}"
+        return "📦", description, ""
+
+    if event_type == "CreateEvent" and payload.get("ref_type") == "branch":
+        branch = html.escape(str(payload.get("ref") or "main"))
+        return "🌿", f"Created branch [`{branch}`]", f"{repo_url}/tree/{branch}"
+
+    if event_type == "CreateEvent" and payload.get("ref_type") == "repository":
+        return "📁", "Created repository", ""
+
+    if event_type == "PullRequestEvent":
+        pull = payload.get("pull_request") or {}
+        number = pull.get("number") or payload.get("number") or "?"
+        action = html.escape(str(payload.get("action") or "updated").title())
+        title = html.escape(str(pull.get("title") or "pull request")[:100])
+        return "🔀", f"{action} pull request #{number}: {title}", str(pull.get("html_url") or repo_url)
+
+    if event_type == "IssuesEvent":
+        issue = payload.get("issue") or {}
+        number = issue.get("number") or payload.get("number") or "?"
+        action = html.escape(str(payload.get("action") or "updated").title())
+        title = html.escape(str(issue.get("title") or "issue")[:100])
+        return "🐛", f"{action} issue #{number}: {title}", str(issue.get("html_url") or repo_url)
+
+    if event_type == "IssueCommentEvent":
+        issue = payload.get("issue") or {}
+        number = issue.get("number") or "?"
+        return "💬", f"Commented on issue #{number}", str(issue.get("html_url") or repo_url)
+
+    if event_type == "WatchEvent":
+        return "⭐", "Starred repository", ""
+
+    if event_type == "ForkEvent":
+        fork = payload.get("forkee") or {}
+        return "🍴", "Forked repository", str(fork.get("html_url") or repo_url)
+
+    if event_type == "ReleaseEvent":
+        release = payload.get("release") or {}
+        tag = html.escape(str(release.get("tag_name") or "release"))
+        return "🚀", f"Published release `{tag}`", str(release.get("html_url") or repo_url)
+
+    return "", "", ""
 
 
 def update_readme(new_activities: list[str]) -> bool:
