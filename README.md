@@ -8,7 +8,7 @@
 <br>
 <br>
 <div align="center">
-<img src="./generated/name.svg" alt="Profile name">
+<img src="./itsfourvn.svg" alt="itsfourvn animated name">
 <br>
 <img src="./generated/overview.svg"><img src="./generated/languages.svg">
 </div>

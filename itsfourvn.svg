@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 470 112" role="img" aria-labelledby="itsfour-title">
+  <title id="itsfour-title">itsfour</title>
+  <style>
+    @keyframes dash { from { stroke-dashoffset: 727px } to { stroke-dashoffset: 0 } }
+    @keyframes stroke-width { from { stroke-width: 3px } to { stroke-width: 8px } }
+    @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+    @keyframes neon-out { to { opacity: 0 } }
+    @keyframes white-in { to { opacity: 1 } }
+    @keyframes glow {
+      from { filter: drop-shadow(0 0 2px #fff6) drop-shadow(0 0 8px var(--color)) drop-shadow(0 0 26px var(--color)) }
+      to { filter: drop-shadow(0 0 1.8px #fff6) drop-shadow(0 0 7.2px var(--color)) drop-shadow(0 0 23.5px var(--color)) }
+    }
+    @keyframes flicker { 0%,18%,22%,25%,53%,57%,to { opacity: 1 } 20%,24%,55% { opacity: .87 } }
+    @keyframes white-glow {
+      from { filter: drop-shadow(0 0 2px #fff9) drop-shadow(0 0 8px #fff8) }
+      to { filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 15px #fff9) }
+    }
+    :root { --pink: #f9e; --blue: #78f; --red: #f69 }
+    path {
+      fill: none;
+      stroke: var(--color, var(--pink));
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 3px;
+      stroke-dasharray: 727px;
+      stroke-dashoffset: 727px;
+    }
+    .neon-logo {
+      animation: neon-out .9s ease-in-out 2.2s forwards;
+    }
+    .neon-logo path {
+      animation: dash 1s cubic-bezier(.8,0,.2,1) var(--delay) forwards,
+                 stroke-width 1s cubic-bezier(.8,0,.2,1) calc(var(--delay) + .5s) forwards,
+                 fade .2s linear var(--delay) forwards,
+                 glow .11s ease-in-out calc(var(--delay) + 1.5s) infinite alternate,
+                 flicker 2s calc(var(--delay) + 2.8s) infinite alternate;
+    }
+    .white-logo {
+      opacity: 0;
+      animation: white-in .9s ease-in-out 2.2s forwards;
+    }
+    .white-logo path {
+      --color: #fff;
+      stroke: #fff;
+      animation: dash 1s cubic-bezier(.8,0,.2,1) var(--delay) forwards,
+                 stroke-width 1s cubic-bezier(.8,0,.2,1) calc(var(--delay) + .5s) forwards,
+                 fade .2s linear var(--delay) forwards,
+                 white-glow 2.4s ease-in-out 3.1s infinite alternate;
+    }
+    .blue { --color: var(--blue) }
+    .red { --color: var(--red) }
+  </style>
+  <g class="neon-logo">
+    <path class="blue" style="--delay:0s" d="M27 49v47 M27 20v2" />
+    <path style="--delay:.2s" d="M82 27v69 M59 49h48" />
+    <path style="--delay:.4s" d="M163 54c-8-8-17-10-26-8-11 2-16 10-12 18 3 6 10 8 19 11 12 4 20 8 18 17-2 9-12 14-23 14-11 0-21-4-29-11" />
+    <path class="red" style="--delay:.6s" d="M213 96V46c0-15 9-23 22-23 6 0 11 2 16 5 M199 52h47" />
+    <path class="blue" style="--delay:.8s" d="M312 72c0 16-11 27-26 27s-26-11-26-27 11-27 26-27 26 11 26 27Z" />
+    <path class="blue" style="--delay:1s" d="M354 46v31c0 14 8 22 21 22 14 0 23-10 23-24V46" />
+    <path class="red" style="--delay:1.2s" d="M433 98V46 M434 69c5-16 15-24 30-24" />
+  </g>
+  <g class="white-logo" aria-hidden="true">
+    <path style="--delay:0s" d="M27 49v47 M27 20v2" />
+    <path style="--delay:.2s" d="M82 27v69 M59 49h48" />
+    <path style="--delay:.4s" d="M163 54c-8-8-17-10-26-8-11 2-16 10-12 18 3 6 10 8 19 11 12 4 20 8 18 17-2 9-12 14-23 14-11 0-21-4-29-11" />
+    <path style="--delay:.6s" d="M213 96V46c0-15 9-23 22-23 6 0 11 2 16 5 M199 52h47" />
+    <path style="--delay:.8s" d="M312 72c0 16-11 27-26 27s-26-11-26-27 11-27 26-27 26 11 26 27Z" />
+    <path style="--delay:1s" d="M354 46v31c0 14 8 22 21 22 14 0 23-10 23-24V46" />
+    <path style="--delay:1.2s" d="M433 98V46 M434 69c5-16 15-24 30-24" />
+  </g>
+</svg>
