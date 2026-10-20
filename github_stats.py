@@ -112,6 +112,7 @@ class Queries(object):
       }}
       nodes {{
         nameWithOwner
+        isFork
         stargazers {{
           totalCount
         }}
@@ -148,6 +149,7 @@ class Queries(object):
       }}
       nodes {{
         nameWithOwner
+        isFork
         stargazers {{
           totalCount
         }}
@@ -306,11 +308,13 @@ Languages:
             )
 
             repos = [] if owned_done else owned_repos.get("nodes", [])
-            if not self._ignore_forked_repos and not contrib_done:
+            if not contrib_done:
                 repos += contrib_repos.get("nodes", [])
 
             for repo in repos:
                 if repo is None:
+                    continue
+                if self._ignore_forked_repos and repo.get("isFork", False):
                     continue
                 name = repo.get("nameWithOwner")
                 if name in self._repos or name in self._exclude_repos:
@@ -339,7 +343,6 @@ Languages:
             owned_done = owned_done or not owned_page.get("hasNextPage", False)
             contrib_done = (
                 contrib_done
-                or self._ignore_forked_repos
                 or not contrib_page.get("hasNextPage", False)
             )
             next_owned = owned_page.get("endCursor", next_owned) if not owned_done else None
