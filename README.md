@@ -4,12 +4,9 @@
 - [Vendicated/Vencord](https://github.com/Vendicated/Vencord)
 - [Team-BTMC/ppcounter-overlay](https://github.com/Team-BTMC/ppcounter-overlay)
 
-<br>
-<br>
-<br>
+<img src="./itsfourvn.svg" width="280" align="left" alt="itsfourvn animated name">
+<br clear="both">
 <div align="center">
-<img src="./itsfourvn.svg" width="320" alt="itsfourvn animated name">
-<br>
 <img src="./generated/overview.svg"><img src="./generated/languages.svg">
 </div>
 
