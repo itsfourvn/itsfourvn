@@ -50,7 +50,7 @@ class Queries(object):
                 print(f"GraphQL request attempt {attempt + 1} failed: {error}")
             if attempt < 2:
                 await asyncio.sleep(2 ** attempt)
-        return dict()
+        raise RuntimeError("GitHub GraphQL API request failed after 3 attempts.")
 
     async def query_rest(self, path: str, params: Optional[Dict] = None) -> Any:
         """
@@ -83,8 +83,7 @@ class Queries(object):
                 print(f"REST request attempt {attempt + 1} failed for {path}: {error}")
             if attempt < 2:
                 await asyncio.sleep(2 ** attempt)
-        print(f"Could not fetch {path}; returning empty data.")
-        return dict()
+        raise RuntimeError(f"GitHub REST API request failed for {path} after 3 attempts.")
 
     @staticmethod
     def repos_overview(
@@ -290,22 +289,20 @@ Languages:
             )
             raw_results = raw_results if raw_results is not None else {}
 
-            self._name = raw_results.get("data", {}).get("viewer", {}).get("name", None)
-            if self._name is None:
-                self._name = (
-                    raw_results.get("data", {})
-                    .get("viewer", {})
-                    .get("login", "No Name")
+            viewer = raw_results.get("data", {}).get("viewer")
+            if not isinstance(viewer, dict) or not viewer.get("login"):
+                raise RuntimeError("GitHub token did not return a valid viewer account.")
+            if viewer["login"].lower() != self.username.lower():
+                raise RuntimeError(
+                    f"ACCESS_TOKEN belongs to {viewer['login']}, not {self.username}."
                 )
 
-            contrib_repos = (
-                raw_results.get("data", {})
-                .get("viewer", {})
-                .get("repositoriesContributedTo", {})
-            )
-            owned_repos = (
-                raw_results.get("data", {}).get("viewer", {}).get("repositories", {})
-            )
+            self._name = viewer.get("name")
+            if self._name is None:
+                self._name = viewer["login"]
+
+            contrib_repos = viewer.get("repositoriesContributedTo", {})
+            owned_repos = viewer.get("repositories", {})
 
             repos = [] if owned_done else owned_repos.get("nodes", [])
             if not contrib_done:

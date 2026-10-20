@@ -112,6 +112,9 @@ async def main() -> None:
             exclude_langs=excluded_langs,
             ignore_forked_repos=ignore_forked_repos,
         )
+        # Fetch the shared repository statistics once. Calling get_stats()
+        # concurrently from both generators can race and produce mixed data.
+        await s.get_stats()
         await asyncio.gather(generate_languages(s), generate_overview(s))
 
 
