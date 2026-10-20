@@ -3,6 +3,7 @@
 import asyncio
 import os
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 import aiohttp
@@ -44,6 +45,9 @@ async def generate_languages(s: Stats) -> None:
     """
     with open("templates/languages.svg", "r", encoding="utf-8") as f:
         output = f.read()
+
+    generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    output = f"<!-- Generated at {generated_at} -->\n{output}"
 
     progress = ""
     lang_list = ""
