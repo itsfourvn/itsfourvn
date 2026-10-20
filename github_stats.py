@@ -145,9 +145,9 @@ class Queries(object):
         }},
         contributionTypes: [
             COMMIT,
+            ISSUE,
             PULL_REQUEST,
-            REPOSITORY,
-            PULL_REQUEST_REVIEW
+            REPOSITORY
         ]
         after: {"null" if contrib_cursor is None else '"'+ contrib_cursor +'"'}
     ) {{
