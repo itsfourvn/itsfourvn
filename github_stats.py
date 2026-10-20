@@ -45,7 +45,14 @@ class Queries(object):
                         result = await response.json(content_type=None)
                 if response.status == 200 and isinstance(result, dict) and not result.get("errors"):
                     return result
-                print(f"GraphQL request failed (HTTP {response.status})")
+                errors = result.get("errors") if isinstance(result, dict) else None
+                error_text = "; ".join(
+                    str(error.get("message", "Unknown GraphQL error"))
+                    for error in errors or []
+                    if isinstance(error, dict)
+                )
+                suffix = f": {error_text}" if error_text else ""
+                print(f"GraphQL request failed (HTTP {response.status}){suffix}")
             except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as error:
                 print(f"GraphQL request attempt {attempt + 1} failed: {error}")
             if attempt < 2:

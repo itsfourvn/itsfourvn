@@ -31,7 +31,7 @@ jobs:
 
       - name: Generate README data
         env:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          ACCESS_TOKEN: ${{ github.token }}
           GITHUB_USERNAME: itsfourvn
           EXCLUDE_FORKED_REPOS: "true"
         run: |
