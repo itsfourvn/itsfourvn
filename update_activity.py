@@ -25,16 +25,29 @@ def get_recent_events(limit: int = 25) -> list[str]:
     headers = {"Accept": "application/vnd.github+json"}
     if ACCESS_TOKEN:
         headers["Authorization"] = f"Bearer {ACCESS_TOKEN}"
-    response = requests.get(
-        f"https://api.github.com/users/{GITHUB_USERNAME}/events",
-        headers=headers,
-        params={"per_page": 100},
-        timeout=30,
-    )
-    response.raise_for_status()
+    events: list[dict[str, Any]] = []
+    seen_event_ids: set[str] = set()
+    for page in range(1, 11):
+        response = requests.get(
+            f"https://api.github.com/users/{GITHUB_USERNAME}/events",
+            headers=headers,
+            params={"per_page": 100, "page": page},
+            timeout=30,
+        )
+        response.raise_for_status()
+        page_events = response.json()
+        if not page_events:
+            break
+        for event in page_events:
+            event_id = str(event.get("id") or "")
+            if event_id and event_id in seen_event_ids:
+                continue
+            if event_id:
+                seen_event_ids.add(event_id)
+            events.append(event)
 
     activity_lines: list[str] = []
-    for event in response.json():
+    for event in events:
         if len(activity_lines) >= limit:
             break
         repo_name = str((event.get("repo") or {}).get("name") or "")
