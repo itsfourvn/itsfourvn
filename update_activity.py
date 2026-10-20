@@ -17,8 +17,8 @@ START_MARKER = "<!--START_SECTION:activity-->"
 END_MARKER = "<!--END_SECTION:activity-->"
 
 
-def get_recent_events(limit: int = 15) -> list[str]:
-    """Return up to ``limit`` readable public events for the user."""
+def get_recent_events(limit: int = 25) -> list[str]:
+    """Return recent commits across all public repositories of the user."""
     if not GITHUB_USERNAME:
         raise RuntimeError("GITHUB_USERNAME must not be empty.")
 
@@ -26,65 +26,54 @@ def get_recent_events(limit: int = 15) -> list[str]:
     if ACCESS_TOKEN:
         headers["Authorization"] = f"Bearer {ACCESS_TOKEN}"
     response = requests.get(
-        f"https://api.github.com/users/{GITHUB_USERNAME}/events/public",
+        f"https://api.github.com/users/{GITHUB_USERNAME}/repos",
         headers=headers,
-        params={"per_page": 100},
+        params={"per_page": 100, "sort": "updated", "direction": "desc"},
         timeout=30,
     )
     response.raise_for_status()
 
-    activity_lines: list[str] = []
-    for event in response.json():
-        if len(activity_lines) >= limit:
-            break
-        event_type = event.get("type")
-        repo_name = event.get("repo", {}).get("name")
+    commits: list[dict[str, Any]] = []
+    for repo in response.json():
+        repo_name = repo.get("full_name")
         if not repo_name:
             continue
-        repo_name_html = html.escape(repo_name)
-        repo_url = f"https://github.com/{repo_name}"
-        payload: dict[str, Any] = event.get("payload") or {}
-
-        if event_type == "PushEvent":
-            branch = str(payload.get("ref", "refs/heads/main")).split("/")[-1]
-            for commit in payload.get("commits") or []:
-                if len(activity_lines) >= limit:
-                    break
-                sha = str(commit.get("sha", ""))
-                if not sha:
-                    continue
-                message = html.escape(str(commit.get("message", "")).splitlines()[0][:120])
-                short_sha = html.escape(sha[:7])
-                branch_html = html.escape(branch)
-                activity_lines.append(
-                    f"{len(activity_lines) + 1}. 📦 Pushed [`{short_sha}`]"
-                    f"({repo_url}/commit/{sha}) to [`{branch_html}`]"
-                    f"({repo_url}/tree/{branch}) in [{repo_name_html}]({repo_url})"
-                    f" - {message}"
-                )
-        elif event_type == "CreateEvent":
-            ref_type = payload.get("ref_type")
-            if ref_type == "repository":
-                activity_lines.append(
-                    f"{len(activity_lines) + 1}. ✨ Created repository "
-                    f"[{repo_name_html}]({repo_url})"
-                )
-            elif ref_type == "branch" and payload.get("ref"):
-                branch = html.escape(str(payload["ref"]))
-                activity_lines.append(
-                    f"{len(activity_lines) + 1}. 🌿 Created branch `{branch}` "
-                    f"in [{repo_name_html}]({repo_url})"
-                )
-        elif event_type == "PullRequestEvent" and payload.get("action") == "opened":
-            pull_request = payload.get("pull_request") or {}
-            number = html.escape(str(pull_request.get("number", "")))
-            title = html.escape(str(pull_request.get("title", "Untitled")))
-            url = pull_request.get("html_url", repo_url)
-            activity_lines.append(
-                f"{len(activity_lines) + 1}. 🔀 Opened PR [#{number} {title}]"
-                f"({url}) in [{repo_name_html}]({repo_url})"
+        commits_response = requests.get(
+            f"https://api.github.com/repos/{repo_name}/commits",
+            headers=headers,
+            params={"author": GITHUB_USERNAME, "per_page": 10},
+            timeout=30,
+        )
+        if commits_response.status_code == 409:
+            continue
+        commits_response.raise_for_status()
+        for commit in commits_response.json():
+            commit_data = commit.get("commit") or {}
+            author_date = (commit_data.get("author") or {}).get("date") or ""
+            commits.append(
+                {
+                    "repo_name": repo_name,
+                    "repo_url": f"https://github.com/{repo_name}",
+                    "branch": repo.get("default_branch") or "main",
+                    "sha": commit.get("sha", ""),
+                    "url": commit.get("html_url", ""),
+                    "message": str(commit_data.get("message", "")).splitlines()[0][:120],
+                    "date": author_date,
+                }
             )
 
+    commits.sort(key=lambda commit: commit["date"], reverse=True)
+    activity_lines: list[str] = []
+    for commit in commits[:limit]:
+        repo_name_html = html.escape(commit["repo_name"])
+        branch_html = html.escape(commit["branch"])
+        sha = html.escape(commit["sha"][:7])
+        message = html.escape(commit["message"])
+        activity_lines.append(
+            f"{len(activity_lines) + 1}. 📦 Pushed [`{sha}`]({commit['url']}) "
+            f"to [`{branch_html}`]({commit['repo_url']}/tree/{commit['branch']}) "
+            f"in [{repo_name_html}]({commit['repo_url']}) - {message}"
+        )
     return activity_lines
 
 
