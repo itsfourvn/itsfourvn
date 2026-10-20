@@ -8,6 +8,8 @@
 <br>
 <br>
 <div align="center">
+<img src="./generated/name.svg" alt="Profile name">
+<br>
 <img src="./generated/overview.svg"><img src="./generated/languages.svg">
 </div>
 

@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import asyncio
+import html
 import os
 import re
 from datetime import datetime, timezone
@@ -80,6 +81,37 @@ fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8z"></path></svg>
     with open("generated/languages.svg", "w", encoding="utf-8") as f:
         f.write(output)
 
+
+async def generate_name(s: Stats) -> None:
+    """Generate a small SVG name card for the profile README."""
+    display_name = html.escape(await s.name)
+    username = html.escape(s.username)
+    generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    output = f'''<!-- Generated at {generated_at} -->
+<svg width="760" height="150" viewBox="0 0 760 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="{display_name}">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#171b2f"/>
+      <stop offset="55%" stop-color="#4b2f72"/>
+      <stop offset="100%" stop-color="#d95f9f"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#64d8cb"/>
+      <stop offset="100%" stop-color="#ffd166"/>
+    </linearGradient>
+  </defs>
+  <rect width="760" height="150" rx="22" fill="url(#bg)"/>
+  <circle cx="680" cy="28" r="90" fill="#ffffff" opacity="0.08"/>
+  <circle cx="735" cy="125" r="55" fill="#64d8cb" opacity="0.12"/>
+  <path d="M42 112 C170 52 245 144 370 92 S600 62 718 102" fill="none" stroke="url(#line)" stroke-width="4" opacity="0.9"/>
+  <text x="42" y="62" fill="#ffffff" font-family="Segoe UI, sans-serif" font-size="18" letter-spacing="4">WELCOME TO</text>
+  <text x="40" y="104" fill="#ffffff" font-family="Segoe UI, sans-serif" font-size="38" font-weight="700">{display_name}</text>
+  <text x="44" y="132" fill="#e8e6f5" font-family="Segoe UI, sans-serif" font-size="15">@{username}</text>
+</svg>
+'''
+    with open("generated/name.svg", "w", encoding="utf-8") as f:
+        f.write(output)
+
 async def main() -> None:
     """
     Generate all badges
@@ -115,7 +147,7 @@ async def main() -> None:
         # Fetch the shared repository statistics once. Calling get_stats()
         # concurrently from both generators can race and produce mixed data.
         await s.get_stats()
-        await asyncio.gather(generate_languages(s), generate_overview(s))
+        await asyncio.gather(generate_languages(s), generate_overview(s), generate_name(s))
 
 
 if __name__ == "__main__":

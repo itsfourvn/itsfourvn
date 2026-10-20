@@ -87,13 +87,15 @@ class Queries(object):
 
     @staticmethod
     def repos_overview(
-        contrib_cursor: Optional[str] = None, owned_cursor: Optional[str] = None
+        username: str,
+        contrib_cursor: Optional[str] = None,
+        owned_cursor: Optional[str] = None,
     ) -> str:
         """
         :return: GraphQL query with overview of user repositories
         """
         return f"""{{
-  viewer {{
+  user(login: "{username}") {{
     login,
     name,
     repositories(
@@ -169,18 +171,18 @@ class Queries(object):
 """
 
     @staticmethod
-    def contrib_years() -> str:
+    def contrib_years(username: str) -> str:
         """
         :return: GraphQL query to get all years the user has been a contributor
         """
-        return """
-query {
-  viewer {
-    contributionsCollection {
+        return f"""
+query {{
+  user(login: "{username}") {{
+    contributionsCollection {{
       contributionYears
-    }
-  }
-}
+    }}
+  }}
+}}
 """
 
     @staticmethod
@@ -201,7 +203,7 @@ query {
 """
 
     @classmethod
-    def all_contribs(cls, years: List[str]) -> str:
+    def all_contribs(cls, username: str, years: List[str]) -> str:
         """
         :param years: list of years to get contributions for
         :return: query to retrieve contribution information for all user years
@@ -209,7 +211,7 @@ query {
         by_years = "\n".join(map(cls.contribs_by_year, years))
         return f"""
 query {{
-  viewer {{
+  user(login: "{username}") {{
     {by_years}
   }}
 }}
@@ -284,18 +286,15 @@ Languages:
         while not (owned_done and contrib_done):
             raw_results = await self.queries.query(
                 Queries.repos_overview(
+                    self.username,
                     owned_cursor=next_owned, contrib_cursor=next_contrib
                 )
             )
             raw_results = raw_results if raw_results is not None else {}
 
-            viewer = raw_results.get("data", {}).get("viewer")
+            viewer = raw_results.get("data", {}).get("user")
             if not isinstance(viewer, dict) or not viewer.get("login"):
-                raise RuntimeError("GitHub token did not return a valid viewer account.")
-            if viewer["login"].lower() != self.username.lower():
-                raise RuntimeError(
-                    f"ACCESS_TOKEN belongs to {viewer['login']}, not {self.username}."
-                )
+                raise RuntimeError(f"GitHub user {self.username} was not found in the API response.")
 
             self._name = viewer.get("name")
             if self._name is None:
@@ -425,16 +424,16 @@ Languages:
 
         self._total_contributions = 0
         years = (
-            (await self.queries.query(Queries.contrib_years()))
+            (await self.queries.query(Queries.contrib_years(self.username)))
             .get("data", {})
-            .get("viewer", {})
+            .get("user", {})
             .get("contributionsCollection", {})
             .get("contributionYears", [])
         )
         by_year = (
-            (await self.queries.query(Queries.all_contribs(years)))
+            (await self.queries.query(Queries.all_contribs(self.username, years)))
             .get("data", {})
-            .get("viewer", {})
+            .get("user", {})
             .values()
         )
         for year in by_year:
